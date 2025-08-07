@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manga Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .input-section {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button.delete {
+            background-color: #f44336;
+        }
+        button.delete:hover {
+            background-color: #d32f2f;
+        }
+        button.edit {
+            background-color: #ff9800;
+        }
+        button.edit:hover {
+            background-color: #e68a00;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            cursor: pointer;
+        }
+        th:hover {
+            background-color: #e6e6e6;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Manga Tracker</h1>
+    
+    <div class="input-section">
+        <div class="input-group">
+            <label for="manga-name">Manga Name:</label>
+            <input type="text" id="manga-name" placeholder="Enter manga name">
+        </div>
+        
+        <div class="input-group">
+            <label for="latest-chapter">Latest Chapter Read:</label>
+            <input type="text" id="latest-chapter" placeholder="Enter latest chapter read">
+        </div>
+        
+        <div class="input-group">
+            <label for="website-link">Website to Read (URL):</label>
+            <input type="text" id="website-link" placeholder="Enter website URL (include http:// or https://)">
+        </div>
+        
+        <div class="input-group">
+            <label for="last-read">Last Read Date:</label>
+            <input type="date" id="last-read">
+        </div>
+        
+        <button id="add-button">Add Manga</button>
+    </div>
+    
+    <table id="manga-table">
+        <thead>
+            <tr>
+                <th data-sort="name">Manga Name</th>
+                <th data-sort="chapter">Latest Chapter</th>
+                <th data-sort="date">Last Read</th>
+                <th>Website</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Manga entries will be added here -->
+        </tbody>
+    </table>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        // Your Firebase Config (Replace with yours!)
+        const firebaseConfig = {
+  apiKey: "AIzaSyASgTfGURfgqM89i8iGheLRYqrU382zATI",
+  authDomain: "tracker-53e77.firebaseapp.com",
+  projectId: "tracker-53e77",
+  storageBucket: "tracker-53e77.firebasestorage.app",
+  messagingSenderId: "407251220998",
+  appId: "1:407251220998:web:506a2eac92b85e82222187",
+  measurementId: "G-S8Q6WX8CFR"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Load manga when page opens
+        document.addEventListener('DOMContentLoaded', () => {
+            loadMangaList();
+            document.getElementById('add-button').addEventListener('click', addManga);
+            document.getElementById('last-read').valueAsDate = new Date(); // Set today's date
+        });
+
+        // Add new manga
+        async function addManga() {
+            const name = document.getElementById('manga-name').value;
+            const chapter = document.getElementById('latest-chapter').value;
+            let link = document.getElementById('website-link').value;
+            const date = document.getElementById('last-read').value;
+
+            if (!name || !chapter || !link || !date) {
+                alert("Please fill all fields!");
+                return;
+            }
+
+            // Add "http://" if missing
+            if (!link.startsWith('http://') && !link.startsWith('https://')) {
+                link = 'http://' + link;
+            }
+
+            // Save to Firestore
+            await db.collection("manga").add({ name, chapter, link, date });
+            loadMangaList(); // Refresh the list
+            clearInputs();
+        }
+
+        // Load all manga from Firestore
+        async function loadMangaList() {
+            const tableBody = document.querySelector('#manga-table tbody');
+            tableBody.innerHTML = ''; // Clear table
+
+            const snapshot = await db.collection("manga").get();
+            snapshot.forEach(doc => {
+                const manga = doc.data();
+                const row = tableBody.insertRow();
+                row.innerHTML = `
+                    <td>${manga.name}</td>
+                    <td>${manga.chapter}</td>
+                    <td>${formatDate(manga.date)}</td>
+                    <td><a href="${manga.link}" target="_blank">Read Here</a></td>
+                    <td class="action-buttons">
+                        <button class="edit" onclick="editManga('${doc.id}')">Edit</button>
+                        <button class="delete" onclick="deleteManga('${doc.id}')">Delete</button>
+                    </td>
+                `;
+            });
+        }
+
+        // Delete manga
+        async function deleteManga(id) {
+            if (confirm("Delete this manga?")) {
+                await db.collection("manga").doc(id).delete();
+                loadMangaList();
+            }
+        }
+
+        // Format date nicely
+        function formatDate(dateString) {
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            return new Date(dateString).toLocaleDateString(undefined, options);
+        }
+
+        // Clear input fields
+        function clearInputs() {
+            document.getElementById('manga-name').value = '';
+            document.getElementById('latest-chapter').value = '';
+            document.getElementById('website-link').value = '';
+            document.getElementById('last-read').valueAsDate = new Date();
+        }
+    </script>
+</body>
+</html>
