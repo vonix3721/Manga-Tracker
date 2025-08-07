@@ -3,13 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manga Tracker</title>
+    <title>Anime & Manga Tracker</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 800px;
+            max-width: 1000px;
             margin: 0 auto;
             padding: 20px;
+        }
+        .tracker-toggle {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .tracker-toggle button {
+            flex: 1;
+            padding: 10px;
+            font-size: 18px;
+            background-color: #f0f0f0;
+            border: none;
+            cursor: pointer;
+        }
+        .tracker-toggle button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .tracker-section {
+            display: none;
+        }
+        .tracker-section.active {
+            display: block;
         }
         .input-section {
             background-color: #f5f5f5;
@@ -25,7 +47,7 @@
             margin-bottom: 5px;
             font-weight: bold;
         }
-        input {
+        input, select {
             width: 100%;
             padding: 8px;
             border: 1px solid #ddd;
@@ -69,10 +91,6 @@
         }
         th {
             background-color: #f2f2f2;
-            cursor: pointer;
-        }
-        th:hover {
-            background-color: #e6e6e6;
         }
         tr:nth-child(even) {
             background-color: #f9f9f9;
@@ -91,46 +109,84 @@
     </style>
 </head>
 <body>
-    <h1>Manga Tracker</h1>
+    <h1>Anime & Manga Tracker</h1>
     
-    <div class="input-section">
-        <div class="input-group">
-            <label for="manga-name">Manga Name:</label>
-            <input type="text" id="manga-name" placeholder="Enter manga name">
-        </div>
-        
-        <div class="input-group">
-            <label for="latest-chapter">Latest Chapter Read:</label>
-            <input type="text" id="latest-chapter" placeholder="Enter latest chapter read">
-        </div>
-        
-        <div class="input-group">
-            <label for="website-link">Website to Read (URL):</label>
-            <input type="text" id="website-link" placeholder="Enter website URL (include http:// or https://)">
-        </div>
-        
-        <div class="input-group">
-            <label for="last-read">Last Read Date:</label>
-            <input type="date" id="last-read">
-        </div>
-        
-        <button id="add-button">Add Manga</button>
+    <div class="tracker-toggle">
+        <button id="anime-toggle" class="active">Anime Tracker</button>
+        <button id="manga-toggle">Manga Tracker</button>
     </div>
     
-    <table id="manga-table">
-        <thead>
-            <tr>
-                <th>Manga Name</th>
-                <th>Latest Chapter</th>
-                <th>Last Read</th>
-                <th>Website</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- Manga entries will be added here -->
-        </tbody>
-    </table>
+    <!-- Anime Tracker Section -->
+    <div id="anime-section" class="tracker-section active">
+        <div class="input-section">
+            <div class="input-group">
+                <label for="anime-name">Anime Name:</label>
+                <input type="text" id="anime-name" placeholder="Enter anime name">
+            </div>
+            <div class="input-group">
+                <label for="anime-episode">Latest Episode Watched:</label>
+                <input type="text" id="anime-episode" placeholder="Enter latest episode">
+            </div>
+            <div class="input-group">
+                <label for="anime-link">Watch URL:</label>
+                <input type="text" id="anime-link" placeholder="Enter website URL">
+            </div>
+            <div class="input-group">
+                <label for="anime-date">Last Watched Date:</label>
+                <input type="date" id="anime-date">
+            </div>
+            <button id="add-anime">Add Anime</button>
+        </div>
+        
+        <table id="anime-table">
+            <thead>
+                <tr>
+                    <th>Anime Name</th>
+                    <th>Latest Episode</th>
+                    <th>Last Watched</th>
+                    <th>Watch Link</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+    
+    <!-- Manga Tracker Section -->
+    <div id="manga-section" class="tracker-section">
+        <div class="input-section">
+            <div class="input-group">
+                <label for="manga-name">Manga Name:</label>
+                <input type="text" id="manga-name" placeholder="Enter manga name">
+            </div>
+            <div class="input-group">
+                <label for="manga-chapter">Latest Chapter Read:</label>
+                <input type="text" id="manga-chapter" placeholder="Enter latest chapter">
+            </div>
+            <div class="input-group">
+                <label for="manga-link">Read URL:</label>
+                <input type="text" id="manga-link" placeholder="Enter website URL">
+            </div>
+            <div class="input-group">
+                <label for="manga-date">Last Read Date:</label>
+                <input type="date" id="manga-date">
+            </div>
+            <button id="add-manga">Add Manga</button>
+        </div>
+        
+        <table id="manga-table">
+            <thead>
+                <tr>
+                    <th>Manga Name</th>
+                    <th>Latest Chapter</th>
+                    <th>Last Read</th>
+                    <th>Read Link</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
@@ -154,22 +210,46 @@
 
         // Track editing state
         let currentEditingId = null;
+        let currentCollection = null;
 
-        // Load manga when page opens
-        document.addEventListener('DOMContentLoaded', () => {
-            loadMangaList();
-            document.getElementById('add-button').addEventListener('click', addManga);
-            document.getElementById('last-read').valueAsDate = new Date();
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set today's date
+            document.getElementById('anime-date').valueAsDate = new Date();
+            document.getElementById('manga-date').valueAsDate = new Date();
+            
+            // Setup toggle buttons
+            document.getElementById('anime-toggle').addEventListener('click', () => toggleTracker('anime'));
+            document.getElementById('manga-toggle').addEventListener('click', () => toggleTracker('manga'));
+            
+            // Setup add buttons
+            document.getElementById('add-anime').addEventListener('click', () => addItem('anime'));
+            document.getElementById('add-manga').addEventListener('click', () => addItem('manga'));
+            
+            // Load initial data
+            loadData('anime');
+            loadData('manga');
         });
 
-        // Add new manga
-        async function addManga() {
-            const name = document.getElementById('manga-name').value;
-            const chapter = document.getElementById('latest-chapter').value;
-            let link = document.getElementById('website-link').value;
-            const date = document.getElementById('last-read').value;
+        // Toggle between anime/manga sections
+        function toggleTracker(type) {
+            document.getElementById('anime-toggle').classList.remove('active');
+            document.getElementById('manga-toggle').classList.remove('active');
+            document.getElementById('anime-section').classList.remove('active');
+            document.getElementById('manga-section').classList.remove('active');
+            
+            document.getElementById(`${type}-toggle`).classList.add('active');
+            document.getElementById(`${type}-section`).classList.add('active');
+        }
 
-            if (!name || !chapter || !link || !date) {
+        // Add or update item
+        async function addItem(type) {
+            const name = document.getElementById(`${type}-name`).value;
+            const progress = document.getElementById(`${type}-${type === 'anime' ? 'episode' : 'chapter'}`).value;
+            let link = document.getElementById(`${type}-link`).value;
+            const date = document.getElementById(`${type}-date`).value;
+
+            if (!name || !progress || !link || !date) {
                 alert("Please fill all fields!");
                 return;
             }
@@ -178,63 +258,72 @@
                 link = 'http://' + link;
             }
 
-            const mangaData = { name, chapter, link, date };
+            const itemData = {
+                name,
+                progress,
+                link,
+                date,
+                type
+            };
 
-            if (currentEditingId) {
-                // Update existing manga
-                await db.collection("manga").doc(currentEditingId).update(mangaData);
-                currentEditingId = null;
-                document.getElementById('add-button').textContent = 'Add Manga';
+            if (currentEditingId && currentCollection === type) {
+                // Update existing item
+                await db.collection(type).doc(currentEditingId).update(itemData);
+                resetForm(type);
             } else {
-                // Add new manga
-                await db.collection("manga").add(mangaData);
+                // Add new item
+                await db.collection(type).add(itemData);
             }
 
-            loadMangaList();
-            clearInputs();
+            loadData(type);
+            clearInputs(type);
         }
 
-        // Load all manga from Firestore
-        async function loadMangaList() {
-            const tableBody = document.querySelector('#manga-table tbody');
+        // Load data from Firestore
+        async function loadData(type) {
+            const tableBody = document.querySelector(`#${type}-table tbody`);
             tableBody.innerHTML = '';
 
-            const snapshot = await db.collection("manga").get();
+            const snapshot = await db.collection(type).get();
             snapshot.forEach(doc => {
-                const manga = doc.data();
+                const item = doc.data();
                 const row = tableBody.insertRow();
                 row.innerHTML = `
-                    <td>${manga.name}</td>
-                    <td>${manga.chapter}</td>
-                    <td>${formatDate(manga.date)}</td>
-                    <td><a href="${manga.link}" target="_blank">Read Here</a></td>
+                    <td>${item.name}</td>
+                    <td>${item.progress}</td>
+                    <td>${formatDate(item.date)}</td>
+                    <td><a href="${item.link}" target="_blank">${type === 'anime' ? 'Watch' : 'Read'} Here</a></td>
                     <td class="action-buttons">
-                        <button class="edit" onclick="editManga('${doc.id}')">Edit</button>
-                        <button class="delete" onclick="deleteManga('${doc.id}')">Delete</button>
+                        <button class="edit" onclick="editItem('${type}', '${doc.id}')">Edit</button>
+                        <button class="delete" onclick="deleteItem('${type}', '${doc.id}')">Delete</button>
                     </td>
                 `;
             });
         }
 
-        // Edit manga
-        async function editManga(id) {
-            const doc = await db.collection("manga").doc(id).get();
-            const manga = doc.data();
+        // Edit item
+        async function editItem(type, id) {
+            const doc = await db.collection(type).doc(id).get();
+            const item = doc.data();
 
-            document.getElementById('manga-name').value = manga.name;
-            document.getElementById('latest-chapter').value = manga.chapter;
-            document.getElementById('website-link').value = manga.link;
-            document.getElementById('last-read').value = manga.date;
+            document.getElementById(`${type}-name`).value = item.name;
+            document.getElementById(`${type}-${type === 'anime' ? 'episode' : 'chapter'}`).value = item.progress;
+            document.getElementById(`${type}-link`).value = item.link;
+            document.getElementById(`${type}-date`).value = item.date;
 
             currentEditingId = id;
-            document.getElementById('add-button').textContent = 'Update Manga';
+            currentCollection = type;
+            document.getElementById(`add-${type}`).textContent = 'Update ' + type.charAt(0).toUpperCase() + type.slice(1);
+            
+            // Switch to the correct tab
+            toggleTracker(type);
         }
 
-        // Delete manga
-        async function deleteManga(id) {
-            if (confirm("Delete this manga?")) {
-                await db.collection("manga").doc(id).delete();
-                loadMangaList();
+        // Delete item
+        async function deleteItem(type, id) {
+            if (confirm(`Delete this ${type}?`)) {
+                await db.collection(type).doc(id).delete();
+                loadData(type);
             }
         }
 
@@ -245,11 +334,18 @@
         }
 
         // Clear input fields
-        function clearInputs() {
-            document.getElementById('manga-name').value = '';
-            document.getElementById('latest-chapter').value = '';
-            document.getElementById('website-link').value = '';
-            document.getElementById('last-read').valueAsDate = new Date();
+        function clearInputs(type) {
+            document.getElementById(`${type}-name`).value = '';
+            document.getElementById(`${type}-${type === 'anime' ? 'episode' : 'chapter'}`).value = '';
+            document.getElementById(`${type}-link`).value = '';
+            document.getElementById(`${type}-date`).valueAsDate = new Date();
+        }
+
+        // Reset form after update
+        function resetForm(type) {
+            currentEditingId = null;
+            currentCollection = null;
+            document.getElementById(`add-${type}`).textContent = 'Add ' + type.charAt(0).toUpperCase() + type.slice(1);
         }
     </script>
 </body>
