@@ -120,9 +120,9 @@
     <table id="manga-table">
         <thead>
             <tr>
-                <th data-sort="name">Manga Name</th>
-                <th data-sort="chapter">Latest Chapter</th>
-                <th data-sort="date">Last Read</th>
+                <th>Manga Name</th>
+                <th>Latest Chapter</th>
+                <th>Last Read</th>
                 <th>Website</th>
                 <th>Actions</th>
             </tr>
@@ -137,7 +137,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
 
     <script>
-        // Your Firebase Config (Replace with yours!)
+         // Your Firebase Config (Replace with yours!)
         const firebaseConfig = {
   apiKey: "AIzaSyASgTfGURfgqM89i8iGheLRYqrU382zATI",
   authDomain: "tracker-53e77.firebaseapp.com",
@@ -152,11 +152,14 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
+        // Track editing state
+        let currentEditingId = null;
+
         // Load manga when page opens
         document.addEventListener('DOMContentLoaded', () => {
             loadMangaList();
             document.getElementById('add-button').addEventListener('click', addManga);
-            document.getElementById('last-read').valueAsDate = new Date(); // Set today's date
+            document.getElementById('last-read').valueAsDate = new Date();
         });
 
         // Add new manga
@@ -171,21 +174,30 @@
                 return;
             }
 
-            // Add "http://" if missing
             if (!link.startsWith('http://') && !link.startsWith('https://')) {
                 link = 'http://' + link;
             }
 
-            // Save to Firestore
-            await db.collection("manga").add({ name, chapter, link, date });
-            loadMangaList(); // Refresh the list
+            const mangaData = { name, chapter, link, date };
+
+            if (currentEditingId) {
+                // Update existing manga
+                await db.collection("manga").doc(currentEditingId).update(mangaData);
+                currentEditingId = null;
+                document.getElementById('add-button').textContent = 'Add Manga';
+            } else {
+                // Add new manga
+                await db.collection("manga").add(mangaData);
+            }
+
+            loadMangaList();
             clearInputs();
         }
 
         // Load all manga from Firestore
         async function loadMangaList() {
             const tableBody = document.querySelector('#manga-table tbody');
-            tableBody.innerHTML = ''; // Clear table
+            tableBody.innerHTML = '';
 
             const snapshot = await db.collection("manga").get();
             snapshot.forEach(doc => {
@@ -204,6 +216,20 @@
             });
         }
 
+        // Edit manga
+        async function editManga(id) {
+            const doc = await db.collection("manga").doc(id).get();
+            const manga = doc.data();
+
+            document.getElementById('manga-name').value = manga.name;
+            document.getElementById('latest-chapter').value = manga.chapter;
+            document.getElementById('website-link').value = manga.link;
+            document.getElementById('last-read').value = manga.date;
+
+            currentEditingId = id;
+            document.getElementById('add-button').textContent = 'Update Manga';
+        }
+
         // Delete manga
         async function deleteManga(id) {
             if (confirm("Delete this manga?")) {
@@ -212,7 +238,7 @@
             }
         }
 
-        // Format date nicely
+        // Format date
         function formatDate(dateString) {
             const options = { year: 'numeric', month: 'short', day: 'numeric' };
             return new Date(dateString).toLocaleDateString(undefined, options);
